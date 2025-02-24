@@ -1,0 +1,28 @@
+```{r}
+# Assume a character vector of subjs
+existingSubID <- c("P01", ...)
+
+for (sub in seq_along(existingSubID)) {
+  subjId <- existingSubID[sub]  # curr subject
+  
+  if (doPartIdDisplay == 1) {   # trouble shootign
+    cat("Current participant ID:", subjId, "\n")  
+  }
+  
+  # This is the most important part; make sure we have the right directory 
+  rawDatPath <- file.path("M:/Lab_Shared/Juraj/SpeechEEG_SentencesWithPupillometry",
+                          folderName,
+                          paste0(sessionType, subjId),
+                          "eyeTrack")
+  
+  # If no dir exists, let me know 
+  if (!dir.exists(rawDatPath)) {
+    warning("Directory does not exist for subject ", subjId)
+    next
+  }
+  
+  # Continue with further analysis using rawDatPath ...
+}
+
+```
+

@@ -1,0 +1,62 @@
+get some libraries that can help with MATLAB 
+```{r}
+library(R.matlab)   # To read .mat files
+library(mgcv)       # For GAMM analysis
+
+```
+
+```{r}
+mat_dir <- ['M:\Lab_Shared\Juraj\SpeechEEG_SentencesWithPupillometry\' folderName '\' sessionType subjId '\eyeTrack'];
+
+```
+
+# Set the directory containing your .mat files
+# change to your actual directory
+```{r}
+mat_files <- list.files(mat_dir, pattern = "\\.mat$", full.names = TRUE)
+
+```
+
+
+# store model results in a list 
+```{r}
+gamm_results <- list()
+
+```
+
+# Loop over each subject's .mat file
+
+```{r}
+for(file in mat_files) {
+  # Read the .mat file
+  mat_data <- readMat(file) 
+  
+  # Extract data from .mat file.
+  # currently uses dummy .mat variable 'data', assuming 3 columns of time, size, cond, trial 
+  
+  subject_df <- as.data.frame(mat_data$data)
+  
+  #may need to recode columns 
+  
+  
+  
+  
+  # Fit GAMM:
+  # Model pupil AU as a function of a smooth term over time, parametric effect of condition, and a smooth-by-condition interaction.
+  # Random intercept for "trial"
+  mod <- gamm(pupil ~ s(time) + condition + s(time, by = condition),
+                random = list(trial = ~1),
+                data = subject_df)
+  
+  # Use the file name with no extension as subjs id 
+  subject_id <- tools::file_path_sans_ext(basename(file))
+  gamm_results[[subject_id]] <- mod
+}
+```
+
+```{r}
+# Review the summary of subjs model 
+lapply(gamm_results, summary)
+```
+
+
