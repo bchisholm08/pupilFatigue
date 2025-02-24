@@ -6,42 +6,33 @@ library(mgcv)       # For GAMM analysis
 ```
 
 ```{r}
-mat_dir <- ['M:\Lab_Shared\Juraj\SpeechEEG_SentencesWithPupillometry\' folderName '\' sessionType subjId '\eyeTrack'];
+mat_dir <- ['M:\Lab_Shared\Juraj\SpeechEEG_SentencesWithPupillometry\' folderName '\' sessionType subjId '\' eyeTrack'];
 
 ```
 
-# Set the directory containing your .mat files
-# change to your actual directory
+# Directory w/ .mat files
 ```{r}
 mat_files <- list.files(mat_dir, pattern = "\\.mat$", full.names = TRUE)
-
 ```
-
 
 # store model results in a list 
 ```{r}
 gamm_results <- list()
-
 ```
 
 # Loop over each subject's .mat file
 
 ```{r}
 for(file in mat_files) {
-  # Read the .mat file
+  # Read .mat file
   mat_data <- readMat(file) 
   
-  # Extract data from .mat file.
-  # currently uses dummy .mat variable 'data', assuming 3 columns of time, size, cond, trial 
+  # Extract data
+  # Uses dummy .mat variable 'data', assuming 3 columns of time, size, cond, trial 
   
   subject_df <- as.data.frame(mat_data$data)
+  # recode columns?
   
-  #may need to recode columns 
-  
-  
-  
-  
-  # Fit GAMM:
   # Model pupil AU as a function of a smooth term over time, parametric effect of condition, and a smooth-by-condition interaction.
   # Random intercept for "trial"
   mod <- gamm(pupil ~ s(time) + condition + s(time, by = condition),
