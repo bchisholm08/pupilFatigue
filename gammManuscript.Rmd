@@ -1,13 +1,29 @@
-get some libraries that can help with MATLAB 
+Author: Brady M. Chisholm
+University of Minnesota Twin Cities
+Department of Psychology
+
+libraries to help with MATLAB 
 ```{r}
 library(R.matlab)   # To read .mat files
 library(mgcv)       # For GAMM analysis
-
 ```
 
+Get subject ID list 
 ```{r}
-mat_dir <- ['M:\Lab_Shared\Juraj\SpeechEEG_SentencesWithPupillometry\' folderName '\' sessionType subjId '\' eyeTrack'];
+source("")
+```
 
+
+within data folder subjects are named two ways
+P<xx>
+HI<xx>
+
+JM's original pathnames 
+#mat_dir <- ['M:\Lab_Shared\Juraj\SpeechEEG_SentencesWithPupillometry\' folderName '\' sessionType subjId '\' eyeTrack'];
+
+Recoding values 
+```{r}
+setwd("M:\Lab_Shared\Juraj\SpeechEEG_SentencesWithPupillometry")
 ```
 
 # Directory w/ .mat files
@@ -21,7 +37,6 @@ gamm_results <- list()
 ```
 
 # Loop over each subject's .mat file
-
 ```{r}
 for(file in mat_files) {
   # Read .mat file
@@ -35,14 +50,14 @@ for(file in mat_files) {
   
   # Model pupil AU as a function of a smooth term over time, parametric effect of condition, and a smooth-by-condition interaction.
   # Random intercept for "trial"
-  mod <- gamm(pupil ~ s(time) + condition + s(time, by = condition),
+  GMod1 <- gamm(pupil ~ s(time) + condition + s(time, by = condition),
                 random = list(trial = ~1),
                 data = subject_df)
   
-  # Use the file name with no extension as subjs id 
+  # Use the file with no extension as subjs id 
   subject_id <- tools::file_path_sans_ext(basename(file))
-  gamm_results[[subject_id]] <- mod
-}
+  gamm_results[[subject_id]] <- GMod1
+} # if end
 ```
 
 ```{r}
