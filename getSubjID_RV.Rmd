@@ -1,28 +1,28 @@
-Author: Brady M. Chisholm
-University of Minnesota Twin Cities
-Department of Psychology
+# Author Brady M. Chisholm
+# University of Minnesota Twin Cities
+# Department of Psychology
 
-
-REMEMBER: subjID is not subject order, nor is it chronological. Utilize: 
-ln 11 = subj 1-15; ln 12 = subj 16-30; ln 13 = subj 31-46; ln 14 = subj 47-
+# NOTE: subjID is not subject order, nor is it chronological. Utilize: 
+# ln 10 = subj 1-10; ln 11 = 11-20; ln 12 = subj 16-30; ln 13 = subj 31-46; ln 14 = subj 47-
 ```{r}
-getSubjList <- function(experiment){
-  if (experiment == 1){
-SID_List <- list('P01', 'P02', 'P03', 'P04', 'P05', 'P06', 'P07', 'P08', 'P09', 'P10', 'P11', 'P12', 'P13', 'HI14', 'HI15', 
-'P17', 'HI18', 'P19', 'HI20', 'HI21', 'P22', 'HI23', 'P24', 'P25', 'P26', 'HI27', 'HI28', 'P30', 'P31', 'P32',
-'HI33', 'HI34', 'P35', 'HI36', 'P37', 'P38', 'HI39', 'P40','HI41','HI42','HI43','HI44','HI45','HI46','HI47','HI48',
-'HI51','P41','HI50','HI52') 
-  
-badSubs <- list('P01', 'P35','HI49')
-     # P01 incomplete; P35 no main session; HI49 has detached retina
-    
-    SID_List <- SID_List[!(SID_List %in% badSubs)]
-  }
-  else if (experiment != 1){
-    # other exp subj data 
-  print("ERROR: Input given for which data does not exist.")  
-  }
-return(SID_List) 
+getSubjList <- function(experiment) {
+if (experiment == 1) {
+SID_List <- c('P01', 'P02', 'P03', 'P04', 'P05', 'P06', 'P07', 'P08', 'P09', 'P10',
+            'P11', 'P12', 'P13', 'HI14', 'HI15', 'P17', 'HI18', 'P19', 'HI20', 'HI21',
+            'P22', 'HI23', 'P24', 'P25', 'P26', 'HI27', 'HI28', 'P30', 'P31', 'P32',
+            'HI33', 'HI34', 'P35', 'HI36', 'P37', 'P38', 'HI39', 'P40', 'HI41', 'HI42',
+            'HI43', 'HI44', 'HI45', 'HI46', 'HI47', 'HI48', 'HI51', 'P41', 'HI50', 'HI52')
+
+badSubs <- c('P01', 'P35', 'HI49')
+# P01 incomplete; P35 no main session; HI49 has detached retina.
+# Subj XX excluded in original full data b/c of EEG, but ok pupil data.
+SID_List <- SID_List[!(SID_List %in% badSubs)]
+} else {
+# other exp subj data
+print("ERROR: Input given for which data does not exist.")
+SID_List <- NULL
+}
+return(SID_List)
 }
 ```
 

@@ -1,68 +1,74 @@
-Author: Brady M. Chisholm
-University of Minnesota Twin Cities
-Department of Psychology
+# Author: Brady M. Chisholm
+# University of Minnesota Twin Cities
+# Department of Psychology
 
-libraries to help with MATLAB 
+# libraries
 ```{r}
-library(R.matlab)   # To read .mat files
+library(R.matlab)   # To read .mat data files
 library(mgcv)       # For GAMM analysis
+library(knitr)      # purl(); source .Rmd code for callins funcitons   
 ```
 
-Get subject ID list 
+# get subject ID list 
 ```{r}
-source("")
+purl("M:/Lab_Shared/Brady_C/Projects/pupilEEG_fatigue/statistics/scripts/getSubjID_RV.Rmd",
+     output = "getSubjID_RV.R")
+source("getSubjID_RV.R")
+subjIDS <- getSubjList(1)
 ```
 
-
-within data folder subjects are named two ways
-P<xx>
-HI<xx>
-
-JM's original pathnames 
-#mat_dir <- ['M:\Lab_Shared\Juraj\SpeechEEG_SentencesWithPupillometry\' folderName '\' sessionType subjId '\' eyeTrack'];
-
-Recoding values 
+# folder structure
 ```{r}
-setwd("M:\Lab_Shared\Juraj\SpeechEEG_SentencesWithPupillometry")
+# Base directory
+base_dir <- "M:/Lab_Shared/Juraj/SpeechEEG_SentencesWithPupillometry"
+folderName <- "data" 
 ```
 
-# Directory w/ .mat files
 ```{r}
-mat_files <- list.files(mat_dir, pattern = "\\.mat$", full.names = TRUE)
+# empty list for data 
+allDat_list <- list()
 ```
 
-# store model results in a list 
+# subj loop 
 ```{r}
-gamm_results <- list()
-```
-
-# Loop over each subject's .mat file
-```{r}
-for(file in mat_files) {
-  # Read .mat file
-  mat_data <- readMat(file) 
+for (subj in subjIDS) {
+  # build file path 
+  file_path <- file.path(base_dir, folderName, subj, "eyeTrack", "processed", paste0(subj, "_preprocPupilData.mat"))
   
-  # Extract data
-  # Uses dummy .mat variable 'data', assuming 3 columns of time, size, cond, trial 
+  # check existence 
+  if (!file.exists(file_path)) {
+    warning("File does not exist for subject: ", subj)
+    next
+  }
   
-  subject_df <- as.data.frame(mat_data$data)
-  # recode columns?
+  # read mat file 
+  mat_data <- readMat(file_path)
   
-  # Model pupil AU as a function of a smooth term over time, parametric effect of condition, and a smooth-by-condition interaction.
-  # Random intercept for "trial"
-  GMod1 <- gamm(pupil ~ s(time) + condition + s(time, by = condition),
-                random = list(trial = ~1),
-                data = subject_df)
+  # check existence
+  if (!"allDat" %in% names(mat_data)) {
+    warning("Subject ", subj, ": Variable 'allDat' not found in the .mat file.")
+    next
+  }
   
-  # Use the file with no extension as subjs id 
-  subject_id <- tools::file_path_sans_ext(basename(file))
-  gamm_results[[subject_id]] <- GMod1
-} # if end
+  # Extract "allDat"; [200 x 2 x 6000]
+  allDat <- mat_data$allDat
+  
+  # check dims 
+  if (!all(dim(allDat) == c(200, 2, 6000))) {
+    warning("Subject ", subj, ": 'allDat' dims != [200 x 2 x 6000]")
+  }
+  
+  # store array w/ subject ID as name
+  allDat_list[[subj]] <- allDat
+}
 ```
 
 ```{r}
-# Review the summary of subjs model 
-lapply(gamm_results, summary)
+#print final structure 
+cat("Total subjects loaded:", length(allDat_list), "\n")
+
+# print ending dims 
+for (subj in names(allDat_list)) {
+  cat("Subject:", subj, " - Dimensions:", paste(dim(allDat_list[[subj]]), collapse = " x "), "\n")
+  }
 ```
-
-
