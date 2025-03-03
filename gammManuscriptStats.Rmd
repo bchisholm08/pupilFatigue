@@ -48,7 +48,6 @@ all_subjects_data <- lapply(names(subjList), function(subj) {
   } else {
     tidy_df$condOrder <- NA
   }
-  
   # Add subj id 
   tidy_df$subject <- subj
   
@@ -65,19 +64,24 @@ tidy_data <- bind_rows(all_subjects_data)
 summary(tidy_data)
 head(tidy_data)
 ```
+# note: data is almost 2gb, and is very slow. need parallel computing or something to speed up
+```{r}
+datSummary <- ggplot(tidy_data)
+```
 
 # GAMM models... 
 ```{r}
-# Model pupil ~ s(time) + condOrder (if meaningful) with a random intercept for subject.
+# Model: pupil predicted by: s(time) + condOrder w/ random intercept for subj
 
-# If condOrder is categorical, might convert to a factor.
+# If condOrder is categorical, maybe convert into a factor...
 tidy_data$condOrder <- as.factor(tidy_data$condOrder)
 
+# knots = 50
 gamm_model <- gamm(pupil ~ s(time, k = 50) + condOrder,
                    random = list(subject = ~1),
                    data = tidy_data)
 
-# View summary of GAM model
+# summary of GAM model
 summary(gamm_model$gam)
 ```
 
