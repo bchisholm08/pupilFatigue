@@ -1,0 +1,19 @@
+# Author: Brady M. Chisholm
+# University of Minnesota Twin Cities
+# Department of Psychology
+
+```{r}
+library(knitr)      # purl(); source .Rmd code for callings funcitons   
+```
+
+# source .Rmd function 
+```{r}
+purl("M:/Lab_Shared/Brady_C/Projects/pupilEEG_fatigue/statistics/scripts/getData_RV.Rmd",
+     output = "getData_RV.R")
+source("getData_RV.R")
+```
+
+```{r}
+subjList <- getRData(1)
+```
+
