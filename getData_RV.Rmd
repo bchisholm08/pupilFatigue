@@ -11,43 +11,41 @@ library(mgcv)       # For GAMM analysis
 library(knitr)      # purl(); source .Rmd code for callings functions   
 
 # get subjID list 
-purl("M:/Lab_Shared/Brady_C/Projects/pupilEEG_fatigue/statistics/scripts/getSubjID_RV.Rmd",
-   output = "getSubjID_RV.R")
+purl("M:/Lab_Shared/Brady_C/Projects/pupilEEG_fatigue/statistics/scripts/getSubjID_RV.Rmd", output = "getSubjID_RV.R")
 source("getSubjID_RV.R")
 subjIDS <- getSubjList(1)
 
-# Base directory
+# Base data directory
 base_dir <- "M:/Lab_Shared/Juraj/SpeechEEG_SentencesWithPupillometry"
 folderName <- "data" 
 
-# empty list for data 
+# empty list for storing data 
 allDat_list <- list()
 
-# subj loop 
-    # Initialize an empty list to store each subject's data
-    subject_data <- list()
+  # Initialize an empty list to store each subject's data
+  subject_data <- list()
     
-    # Loop over each subject
+    # subj loop 
     for (subj in subjIDS) {
-      # Build file path for the current subject's data file.
+      # construct file path for this subj .
       file_path <- file.path(base_dir, folderName, subj, "eyeTrack", "processed", paste0(subj, "_preprocPupilData.mat"))
       
-      # Check if the file exists; if not, issue a warning and skip.
+      # existence check 
       if (!file.exists(file_path)) {
         warning("File does not exist for subject: ", subj)
         next
       }
       
-      # Read the .mat file.
+      # Read .mat file.
       mat_data <- readMat(file_path)
       
-      # Check if "allDat" exists
+      # existence check 
       if (!"allDat" %in% names(mat_data)) {
         warning("Subject ", subj, ": Variable 'allDat' not found in the .mat file.")
         next
       }
       
-      # Extract "allDat" (expected [200 x 2 x 6000])
+      # Extract "allDat" (exp [200 x 2 x 6000])
       allDat <- mat_data$allDat
       
       # Check dimensions of "allDat"
@@ -55,10 +53,10 @@ allDat_list <- list()
         warning("Subject ", subj, ": 'allDat' dims != [200 x 2 x 6000]")
       }
       
-      # Collapse the second dimension by averaging the two eyes; result: [200 x 6000]
+      # Collapse 2nd dim and average L/R eye; result: [200 x 6000]
       avg_allDat <- apply(allDat, c(1, 3), mean)
       
-      # Extract "condOrder" if it exists; else, assign NA with a warning.
+      # check condOrder existance, else NA & warn
       if ("condOrder" %in% names(mat_data)) {
         condOrder <- mat_data$condOrder
       } else {
@@ -66,20 +64,20 @@ allDat_list <- list()
         condOrder <- NA
       }
       
-      # Store the averaged data and condition order in a list for this subject
+      # Store avg data and condition order for this subj 
       subject_data[[subj]] <- list(averaged = avg_allDat, condOrder = condOrder)
     }
     
-    # Report the total number of subjects loaded
+    # Report total subj # 
     message("Total subjects loaded: ", length(subject_data))
     
-    # Optionally, print dimensions of averaged data for each subject
+    # print dims of avg subj dat
     for (subj in names(subject_data)) {
       dims <- paste(dim(subject_data[[subj]]$averaged), collapse = " x ")
       message("Subject: ", subj, " - Averaged data dimensions: ", dims)
     }
     
-    # Return the list containing subject data (both averaged and condOrder)
+    # Return list w/ avg data and condOrder
     return(subject_data)
     
   } else {

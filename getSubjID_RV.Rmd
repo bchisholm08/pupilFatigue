@@ -1,4 +1,4 @@
-# Author Brady M. Chisholm
+# Author: Brady M. Chisholm
 # University of Minnesota Twin Cities
 # Department of Psychology
 
@@ -18,7 +18,7 @@ excludeSubjects <- c('P01', 'P35', 'HI49')
 # Subj XX excluded in original full data b/c of EEG, but o.k. pupil data.
 SID_List <- SID_List[!(SID_List %in% excludeSubjects)]
 } else {
-# other exp subj data
+# other exp subj data `placeholder`
 print("ERROR: Input given for which data does not exist.")
 SID_List <- NULL
 }
