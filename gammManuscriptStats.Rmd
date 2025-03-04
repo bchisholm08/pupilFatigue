@@ -53,7 +53,7 @@ all_subjects_data <- lapply(names(subjList), function(subj) {
   
   return(tidy_df)
 })
-```
+```does 
 
 # concat subjs and summarize data  
 ```{r}
