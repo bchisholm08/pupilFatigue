@@ -7,10 +7,11 @@ library(knitr)      # purl(); source .Rmd code for callings functions
 library(mgcv)       # for gamm mods 
 library(dplyr)      # data manipulations & formatting
 library(tidyr)      # data manipulations & formatting
+library(ggplot2)     # figures
 ```
 
 # source .Rmd function 
-```{r}
+```{r include=FALSE}
 purl("M:/Lab_Shared/Brady_C/Projects/pupilEEG_fatigue/statistics/scripts/getData_RV.Rmd",
      output = "getData_RV.R")
 source("getData_RV.R")
@@ -19,22 +20,23 @@ source("getData_RV.R")
 ```{r}
 subjList <- getRData(1)
 summary(subjList)
+# check dims returned from getRData against expectation 
 ```
 
 ```{r}
 all_subjects_data <- lapply(names(subjList), function(subj) {
   # Extract the averaged pupil data: a 200 x 6000 matrix
-  avg_mat <- subjList[[subj]]$averaged  # dimensions: 200 x 6000
-  n_trials <- nrow(avg_mat)
-  n_timepoints <- ncol(avg_mat)
+  subjPupilData <- subjList[[subj]]$pupilData  # dimensions: 200 x 6000
+  n_trials <- nrow(subjPupilData)
+  n_timepoints <- ncol(subjPupilData)
   
   # Convert matrix to a data frame with trial as row identifier.
   # The columns will be automatically named V1, V2, ..., V6000.
-  df <- as.data.frame(avg_mat)
+  df <- as.data.frame(subjPupilData)
   df$trial <- 1:n_trials
   
   # reshape data
-  tidy_df <- pivot_longer(df, cols = starts_with("V"), 
+  tidy_df <- pivot_longer(df, cols = starts_with("v"), 
                           names_to = "time", values_to = "pupil")
   
   # Convert time var from "V1", "V2", ... to numeric
@@ -53,33 +55,71 @@ all_subjects_data <- lapply(names(subjList), function(subj) {
   
   return(tidy_df)
 })
-```does 
+```
 
 # concat subjs and summarize data  
 ```{r}
 # Combine all subjects into one tidy data frame
-tidy_data <- bind_rows(all_subjects_data)
+allSubDat <- bind_rows(all_subjects_data)
 
 # Take a look at the structure of the tidy data
-summary(tidy_data)
-head(tidy_data)
+# summary(tidy_data)
+head(allSubDat)
 ```
-# note: data is almost 2gb, and is very slow. need parallel computing or something to speed up
+
 ```{r}
-datSummary <- ggplot(tidy_data)
+set.seed(640)
+# sample a smaller subset of data due to large size of df 
+dataPlot <- allSubDat %>% sample_n(15000)
 ```
+
+# histogram of pupil response 
+```{r}
+pupilRespFig <- ggplot(allSubDat, aes(x = pupil)) +
+  geom_histogram(bins = 30, fill = "skyblue", color = "black") +
+  labs(title = "Histogram of Pupil Values",
+       x = "Pupil Measurement",
+       y = "Frequency")
+pupilRespFig
+```
+# boxplot pupil val by condorder
+```{r}
+ggplot(allSubDat, aes(x = condOrder, y = pupil)) +
+  geom_boxplot(fill = "lightgreen") +
+  labs(title = "Boxplot of Pupil Values by Condition Order",
+       x = "Condition Order",
+       y = "Pupil Measurement")
+```
+
+```{r}
+# Scatter plot of pupil vs. time, colored by condOrder, with a loess smooth
+ggplot(plot_data, aes(x = time, y = pupil, color = condOrder)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "loess", se = FALSE) +
+  labs(title = "Scatter Plot of Pupil vs. Time by Condition Order",
+       x = "Time (sample index)",
+       y = "Pupil Measurement")
+
+# QQ plot to assess the normality of pupil measurements
+ggplot(plot_data, aes(sample = pupil)) +
+  stat_qq() +
+  stat_qq_line() +
+  labs(title = "QQ Plot of Pupil Measurements")
+```
+
+
 
 # GAMM models... 
 ```{r}
 # Model: pupil predicted by: s(time) + condOrder w/ random intercept for subj
 
 # If condOrder is categorical, maybe convert into a factor...
-tidy_data$condOrder <- as.factor(tidy_data$condOrder)
+allSubDat$condOrder <- as.factor(allSubDat$condOrder)
 
 # knots = 50
 gamm_model <- gamm(pupil ~ s(time, k = 50) + condOrder,
                    random = list(subject = ~1),
-                   data = tidy_data)
+                   data = allSubDat)
 
 # summary of GAM model
 summary(gamm_model$gam)
