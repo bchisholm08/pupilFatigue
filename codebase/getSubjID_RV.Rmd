@@ -17,7 +17,7 @@ excludeTheseSubjs <- c('P01','P02', 'P35', 'HI49')   # some bug with P02 subjID 
 
 # P01 incomplete; P35 no main session; HI49 has detached retina.
 # Subj XX excluded in original full data b/c of EEG, but o.k. pupil data.
-subjList <- subList[!(subList %in% excludeTheseSubjs)]
+subjList <- subjList[!(subjList %in% excludeTheseSubjs)]
 } else {
 # other exp subj data `placeholder`
 print("ERROR: Input given for which data does not exist.")

@@ -3,32 +3,37 @@
 # Department of Psychology
 ```{r}
 getRData <- function(data) {
-  # data = 1 for original experiment
+  # data = 1 for original experiment, any other input stops() fatally 
   if (data == 1 ){
     
     # libraries
     library(R.matlab)   # To read .mat data files
     library(mgcv)       # For GAMM analysis
     library(knitr)      # purl(); source .Rmd code for callings functions   
-    # M:\Lab_Shared\Brady_C\Projects\pupilEEG_fatigue\statistics\scripts
     
-    # get resample and subj id w/ functions 
-    purl("M:/Lab_Shared/Brady_C/Projects/pupilEEG_fatigue/statistics/scripts/codebase/getSubjID_RV.Rmd", output = "getSubjID_RV.R")
-source("getSubjID_RV.R")
-  subjIDS <- getSubjList(1)
-    
-
-    purl("M:/Lab_Shared/Brady_C/Projects/pupilEEG_fatigue/statistics/scripts/codebase/resampleSignal.Rmd",
-     output = "resampleSignal.R")
-    source("resampleSignal.R")
-  
     # Base data directory
     base_dir <- "M:/Lab_Shared/Juraj/SpeechEEG_SentencesWithPupillometry/data"
     
-    # store downsampled data 
-    downSampledDataDirectory <- "M:/Lab_Shared/Brady_C/Projects/pupilEEG_fatigue/statistics/scripts/downSampledData"
+    # misc directory for other experiment stuff 
+    miscDir<- "M:/Lab_Shared/Brady_C/Projects/pupilEEG_fatigue/statistics/scripts/misc"
     
-    # try to allocate space for data frame for efficiency 
+    # save extra downsampled dat 
+    downSampledDataDirectory <- "M:/Lab_Shared/Brady_C/Projects/pupilEEG_fatigue/statistics/scripts/downSampDat/"
+    
+    
+    # get resample and subj id w/ functions 
+    purl("M:/Lab_Shared/Brady_C/Projects/pupilEEG_fatigue/statistics/scripts/codebase/getSubjID_RV.Rmd", 
+         output = "getSubjID_RV.R")
+    source("getSubjID_RV.R")
+    
+    purl("M:/Lab_Shared/Brady_C/Projects/pupilEEG_fatigue/statistics/scripts/codebase/resampleSignal.Rmd",
+         output = "resampleSignal.R")
+    source("resampleSignal.R")
+    
+    # get subj ID 
+    subjIDS <- getSubjList(1)
+    
+    # allocate space for data frame for efficiency 
     subject_data <- vector("list", length(subjIDS))
     names(subject_data) <- subjIDS
     
@@ -109,8 +114,7 @@ source("getSubjID_RV.R")
       
       subject_data[[subj]] <- list(pupilData = pupilData, condOrder = condOrder)
       
-      
-      subjectFolder <- file.path(downSampDir, subj)
+      subjectFolder <- file.path(downSampledDataDirectory, subj)
       if (!dir.exists(subjectFolder)) {
         dir.create(subjectFolder, recursive = TRUE)
       }
