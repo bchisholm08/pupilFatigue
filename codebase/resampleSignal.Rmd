@@ -1,0 +1,63 @@
+```{r}
+# Load required package
+if (!require(signal)) {
+  install.packages("signal")
+  library(signal)
+}
+
+# Resample signal function
+resample_signal <- function(x, p, q, n = 10, beta = 5) {
+  # x: Numeric vector or matrix (each column treated as a channel)
+  # p: Upsampling factor
+  # q: Downsampling factor
+  # n: Filter design parameter (default 10)
+  # beta: Kaiser window beta parameter (default 5)
+  
+  # If x is a vector, convert to a one-column matrix for uniform handling.
+  original_dim <- dim(x)
+  if (is.null(original_dim)) {
+    x <- matrix(x, ncol = 1)
+  }
+  
+  # Determine filter length:
+  factor <- max(1, q / p)
+  L <- as.integer(2 * n * factor + 1)
+  
+  # Design FIR low-pass filter:
+  cutoff <- 1 / max(p, q)  # normalized cutoff frequency
+  h <- fir1(L - 1, cutoff, window = kaiser(L, beta))
+  
+  # Function to perform upsampling, filtering, delay compensation, and downsampling.
+  upfirdn <- function(xvec, p, q, h) {
+    Lx <- length(xvec)
+    # Upsample: insert (p-1) zeros between samples.
+    x_up <- rep(0, Lx * p)
+    x_up[seq(1, Lx * p, by = p)] <- xvec
+    
+    # Filter the upsampled signal.
+    y_filt <- filter(h, 1, x_up)
+    
+    # Compensate for filter delay: group delay = (length(h)-1)/2.
+    delay <- floor((length(h) - 1) / 2)
+    if (length(y_filt) > delay) {
+      y_filt <- y_filt[(delay + 1):length(y_filt)]
+    }
+    
+    # Downsample: take every q-th sample.
+    y_down <- y_filt[seq(1, length(y_filt), by = q)]
+    return(y_down)
+  }
+  
+  # Apply the upfirdn process to each column of x.
+  resampled <- apply(x, 2, function(col) upfirdn(col, p, q, h))
+  
+  # If original input was a vector, return a vector.
+  if (is.null(original_dim)) {
+    resampled <- as.vector(resampled)
+  }
+  
+  return(resampled)
+}
+
+```
+

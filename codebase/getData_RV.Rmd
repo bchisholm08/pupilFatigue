@@ -1,0 +1,141 @@
+# Author: Brady M. Chisholm
+# University of Minnesota Twin Cities
+# Department of Psychology
+```{r}
+getRData <- function(data) {
+  # data = 1 for original experiment
+  if (data == 1 ){
+    
+    # libraries
+    library(R.matlab)   # To read .mat data files
+    library(mgcv)       # For GAMM analysis
+    library(knitr)      # purl(); source .Rmd code for callings functions   
+    # M:\Lab_Shared\Brady_C\Projects\pupilEEG_fatigue\statistics\scripts
+    
+    # get resample and subj id w/ functions 
+    purl("M:/Lab_Shared/Brady_C/Projects/pupilEEG_fatigue/statistics/scripts/codebase/getSubjID_RV.Rmd", output = "getSubjID_RV.R")
+source("getSubjID_RV.R")
+  subjIDS <- getSubjList(1)
+    
+
+    purl("M:/Lab_Shared/Brady_C/Projects/pupilEEG_fatigue/statistics/scripts/codebase/resampleSignal.Rmd",
+     output = "resampleSignal.R")
+    source("resampleSignal.R")
+  
+    # Base data directory
+    base_dir <- "M:/Lab_Shared/Juraj/SpeechEEG_SentencesWithPupillometry/data"
+    
+    # store downsampled data 
+    downSampledDataDirectory <- "M:/Lab_Shared/Brady_C/Projects/pupilEEG_fatigue/statistics/scripts/downSampledData"
+    
+    # try to allocate space for data frame for efficiency 
+    subject_data <- vector("list", length(subjIDS))
+    names(subject_data) <- subjIDS
+    
+    # prep bookkeeping table for eye data used 
+    eyeUsed_Data <- data.frame(
+      subject = subjIDS,
+      eyeUsed = rep(NA, length(subjIDS)),
+      stringsAsFactors = FALSE
+    )
+    
+    ## begin subj loop 
+    for (subj in subjIDS) {
+      # construct file path for this subj .
+      file_path <- file.path(base_dir, subj, "eyeTrack", "processed", paste0(subj, "_preprocPupilData.mat"))
+      
+      # existence check 
+      if (!file.exists(file_path)) {
+        warning("File does not exist for subject: ", subj)
+        next # control flow 
+      }
+      
+      # get .mat data file. 
+      # TIME HEAVY LINE !!!!
+      mat_data <- readMat(file_path)
+      
+      if ("condOrder" %in% names(mat_data)) {
+        condOrder <- mat_data$condOrder
+      } else {
+        warning(subj, ": 'condOrder' not found in .mat file.")
+        stop() # fatal error; stop 
+      }
+      
+      # existence check 
+      if (!"allDat" %in% names(mat_data)) {
+        warning(subj, ": 'allDat' not found in the .mat file.")
+        stop()
+        next
+      }
+      
+      # Extract "allDat" (exp [200 x 2 x 6000])
+      allDat <- mat_data$allDat
+      
+      #NaN mean avg for selecting better eye 
+      validityVals <- colMeans(mat_data$allValidityPercentage, na.rm = TRUE)
+      
+      # opt to better eye 
+      if(validityVals[1] > validityVals[2]){
+        pupilData <- allDat[,1,] 
+        eyeUsed <- "Left"
+      }else{
+        pupilData <- allDat[,2,] 
+        eyeUsed <- "Right"
+      }    
+      eyeUsed_Data[eyeUsed_Data$subject == subj, "eyeUsed"] <- eyeUsed
+      
+      # after we have better eye, downsample data for space 
+      # x = a matrix or df of predictors; y = a factor variable with class memberships; list is boolean; yname = "" 
+      
+      # Downsample data from 300Hz to 150Hz.
+      # This is done by averaging every 2 consecutive time points.
+      pupilData_down <- t(resample_signal(t(pupilData), p = 1, q = 2))
+      
+      # Verify the dimensions: Should be 200 x 3000 after downsampling.
+      if (!all(dim(pupilData_down) == c(200, 3000))) {
+        warning("Subject ", subj, ": downsampled data dims != [200 x 3000]")
+      }
+      
+      # Replace the original pupilData with the downsampled version.
+      pupilData <- pupilData_down
+      
+      # Check dimensions of "allDat". Note; use resamp input for checking dims here 
+      if (is.null(mat_data$condOrder) || any(is.na(mat_data$condOrder))) {
+        warning("Subject ", subj, ": condOrder not found or contains NA/NaN values.")
+        stop()
+      } else {
+        condOrder <- mat_data$condOrder
+      }
+      
+      subject_data[[subj]] <- list(pupilData = pupilData, condOrder = condOrder)
+      
+      
+      subjectFolder <- file.path(downSampDir, subj)
+      if (!dir.exists(subjectFolder)) {
+        dir.create(subjectFolder, recursive = TRUE)
+      }
+      
+      today_str <- format(Sys.Date(), "%Y%m%d")
+      fileName <- file.path(subjectFolder, paste0("downsampled_", today_str, "_150Hz.rds"))
+      saveRDS(pupilData, file = fileName)
+      message("Saved downsampled data for subject ", subj, " at ", fileName)
+    }
+    
+    # Save the eyeUsed_Data to the misc directory.
+    eyeUsedFile <- file.path(miscDir, paste0("eyeUsed_Data_", format(Sys.Date(), "%Y%m%d"), ".csv"))
+    write.csv(eyeUsed_Data, eyeUsedFile, row.names = FALSE)
+    message("Saved eyeUsed data at ", eyeUsedFile)
+    
+    # Print dimensions of downsampled subject data
+    for (subj in names(subject_data)) {
+      dims <- paste(dim(subject_data[[subj]]$pupilData), collapse = " x ")
+      message("Subject: ", subj, " - Downsampled data dimensions: ", dims)
+    }
+    
+    # Return list with pupil data and condition order.
+    return(subject_data)
+  } else {
+    stop("Data value not recognized. Please provide a valid data input.")
+  }
+}
+```
