@@ -28,3 +28,100 @@ summary(subjDataList)
 # check dims returned from getRData against expected vals 
 ```
 
+```{r}
+all_data <- lapply(names(subjDataList), function(subj) {
+  data_subj <- subjDataList[[subj]]
+  
+  # Extract the pupil matrix and condition order
+  pupilData <- data_subj$pupilData   # [trials x timepoints]
+  condOrder <- data_subj$condOrder
+  
+  # Convert the pupil matrix to a data frame, adding trial and subject identifiers.
+  df <- as.data.frame(pupilData)
+  df <- df %>%
+    mutate(trial = row_number(),
+           subject = subj,
+           condOrder = condOrder)  # assumes length(condOrder)==nrow(pupilData)
+  
+  # Reshape from wide (each column = time point) to long format
+  df_long <- pivot_longer(df,
+                          cols = -c(trial, subject, condOrder),
+                          names_to = "time",
+                          values_to = "pupil")
+  
+  # Convert the time variable to numeric (assumes column names like V1, V2, ...)
+  df_long <- df_long %>%
+    mutate(time = as.numeric(gsub("V", "", time)))
+  
+  return(df_long)
+})
+
+# Bind all subject data together
+combined_data <- bind_rows(all_data)
+
+# Check structure and a quick summary of the combined data
+str(combined_data)
+summary(combined_data)
+
+# Optionally, save the combined data for future use:
+saveRDS(combined_data, file = "combined_pupil_data.rds")
+```
+
+```{r summary stats}
+# Compute summary statistics per subject and trial
+trial_stats <- combined_data %>%
+  group_by(subject, trial) %>%
+  summarize(mean_pupil = mean(pupil, na.rm = TRUE),
+            sd_pupil   = sd(pupil, na.rm = TRUE),
+            .groups = "drop")
+
+# Overall pupil statistics across all subjects and trials
+overall_stats <- combined_data %>%
+  summarize(mean_pupil = mean(pupil, na.rm = TRUE),
+            sd_pupil   = sd(pupil, na.rm = TRUE),
+            min_pupil  = min(pupil, na.rm = TRUE),
+            max_pupil  = max(pupil, na.rm = TRUE))
+
+print(trial_stats)
+print(overall_stats)
+
+```
+
+```{r mean subj pupil}
+# Average pupil value per time point for each subject (averaged over trials)
+subject_time_series <- combined_data %>%
+  group_by(subject, time) %>%
+  summarize(mean_pupil = mean(pupil, na.rm = TRUE), .groups = "drop")
+
+ggplot(subject_time_series, aes(x = time, y = mean_pupil, group = subject)) +
+  geom_line(alpha = 0.5) +
+  labs(title = "Mean Pupil Time Series per Subject",
+       x = "Time (sample index)",
+       y = "Mean Pupil Diameter")
+
+```
+
+```{r pupil distribution plot}
+ggplot(combined_data, aes(x = pupil)) +
+  geom_histogram(bins = 50, fill = "grey", color = "black") +
+  labs(title = "Distribution of Pupil Measurements",
+       x = "Pupil Diameter",
+       y = "Frequency")
+
+```
+
+```{r mean pupil TS conditions}
+# Compute average pupil time series for each condition (across subjects and trials)
+condition_time_series <- combined_data %>%
+  group_by(condOrder, time) %>%
+  summarize(mean_pupil = mean(pupil, na.rm = TRUE), .groups = "drop")
+
+ggplot(condition_time_series, aes(x = time, y = mean_pupil, color = as.factor(condOrder))) +
+  geom_line() +
+  labs(title = "Mean Pupil Time Series by Condition",
+       x = "Time (sample index)",
+       y = "Mean Pupil Diameter",
+       color = "Condition")
+
+```
+
