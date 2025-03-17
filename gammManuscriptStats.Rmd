@@ -10,121 +10,21 @@ library(tidyr)      # data manipulations & formatting
 library(ggplot2)    # figures
 ```
 
-# source subj function
+# source subj function and resample signal function 
 ```{r}
 purl("M:/Lab_Shared/Brady_C/Projects/pupilEEG_fatigue/statistics/scripts/codebase/getData_RV.Rmd",
      output = "getData_RV.R")
 source("getData_RV.R")
+
+purl("M:/Lab_Shared/Brady_C/Projects/pupilEEG_fatigue/statistics/scripts/codebase/resampleSignal.Rmd",
+     output = "resampleSignal.R")
+source("resampleSignal.R")
 ```
 
 ```{r}
-subjList <- getRData(1)
-summary(subjList)
-# check dims returned from getRData against expectation 
+subjDataList <- getRData(1)
+# assert(trialNumExpected, downSampledDatExpected)
+summary(subjDataList)
+# check dims returned from getRData against expected vals 
 ```
-
-```{r}
-all_subjects_data <- lapply(names(subjList), function(subj) {
-  # Extract pupil data 
-  subjPupilData <- subjList[[subj]]$pupilData  # dimensions: 200 x 6000
-  n_trials <- nrow(subjPupilData)
-  n_timepoints <- ncol(subjPupilData)
-  
-  # Convert matrix to a data frame with trial as row identifier.
-  # The columns will be automatically named V1, V2, ..., V6000.
-  df <- as.data.frame(subjPupilData)
-  df$trial <- 1:n_trials
-  
-  # reshape data
-  tidy_df <- pivot_longer(df, cols = starts_with("v"), 
-                          names_to = "time", values_to = "pupil")
-  
-  # Convert time var from "V1", "V2", ... to numeric
-  tidy_df$time <- as.numeric(sub("V", "", tidy_df$time))
-  
-  # If condOrder exists and is a vector of length equal to number of trials,
-  # then replicate its values for each time point per trial.
-  
-  # remember to recode condORder variable!!!!!
-  
-  condOrder <- subjList[[subj]]$condOrder
-  if (!is.null(condOrder) && length(condOrder) == n_trials) {
-    tidy_df$condOrder <- rep(condOrder, each = n_timepoints)
-  } else {
-    tidy_df$condOrder <- NA
-  }
-  # Add subj id 
-  tidy_df$subject <- subj
-  
-  return(tidy_df)
-})
-```
-
-# concat subjs and summarize data  
-```{r}
-# Combine all subjects into one tidy data frame
-allSubDat <- bind_rows(all_subjects_data)
-
-# Take a look at the structure of the tidy data
-# summary(tidy_data)
-head(allSubDat)
-```
-
-```{r}
-set.seed(640)
-# sample a smaller subset of data due to massive df 
-dataPlot_subset <- allSubDat %>% sample_n(15000)
-```
-
-# histogram of pupil response 
-```{r}
-pupilRespFig <- ggplot(dataPlot_subset, aes(x = pupil)) +
-  geom_histogram(bins = 30, fill = "skyblue", color = "black") +
-  labs(title = "Histogram of Pupil Values",
-       x = "Pupil Measurement",
-       y = "Frequency")
-pupilRespFig
-```
-
-# boxplot pupil val by condorder
-```{r}
-ggplot(dataPlot_subset, aes(x = condOrder, y = pupil)) +
-  geom_boxplot(fill = "lightgreen") +
-  labs(title = "Boxplot of Pupil Values by Condition Order",
-       x = "Condition Order",
-       y = "Pupil Measurement")
-```
-
-```{r}
-# Scatter plot of pupil vs. time, colored by condOrder, with a loess smooth
-ggplot(dataPlot_subset, aes(x = time, y = pupil, color = condOrder)) +
-  geom_point(alpha = 0.3) +
-  geom_smooth(method = "loess", se = FALSE) +
-  labs(title = "Scatter Plot of Pupil vs. Time by Condition Order",
-       x = "Time (sample index)",
-       y = "Pupil Measurement")
-
-# QQ plot to assess the normality of pupil measurements
-ggplot(dataPlot_subset, aes(sample = pupil)) +
-  stat_qq() +
-  stat_qq_line() +
-  labs(title = "QQ Plot of Pupil Measurements")
-```
-
-# GAMM models... 
-```{r}
-# Model: pupil predicted by: s(time) + condOrder w/ random intercept for subj
-
-# If condOrder is categorical, maybe convert into a factor...
-allSubDat$condOrder <- as.factor(allSubDat$condOrder)
-
-# knots = 50
-gamm_model <- gamm(pupil ~ s(time, k = 50) + condOrder,
-                   random = list(subject = ~1),
-                   data = dataPlot)
-
-# summary of GAM model
-summary(gamm_model$gam)
-```
-
 
