@@ -62,6 +62,5 @@ resample_signal <- function(inputMatrix, upSamp, downSamp, filt = 10, beta = 5) 
   
   return(resampled)
 }
-
 ```
 

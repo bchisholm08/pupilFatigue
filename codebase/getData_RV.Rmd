@@ -81,10 +81,10 @@ getRData <- function(data) {
       # Select the better eye based on validity values.
       if (validityVals[1] > validityVals[2]){
         pupilData <- allDat[,1,] 
-        eyeUsed <- "Left"
+        eyeUsed <- "L"
       } else {
         pupilData <- allDat[,2,] 
-        eyeUsed <- "Right"
+        eyeUsed <- "R"
       }    
       eyeUsed_Data[eyeUsed_Data$subject == subj, "eyeUsed"] <- eyeUsed
       

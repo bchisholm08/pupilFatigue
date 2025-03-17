@@ -28,54 +28,55 @@ summary(subjDataList)
 # check dims returned from getRData against expected vals 
 ```
 
-```{r}
+```{r gpt block gather data and combine}
+# Combine the downsampled data from all subjects into one long-format data frame
+
 all_data <- lapply(names(subjDataList), function(subj) {
   data_subj <- subjDataList[[subj]]
   
-  # Extract the pupil matrix and condition order
-  pupilData <- data_subj$pupilData   # [trials x timepoints]
-  condOrder <- data_subj$condOrder
+  # Extract the pupil data (trials x timepoints) and condition order (vector of length trials)
+  pupilData <- data_subj$pupilData    
+  condOrder <- data_subj$condOrder      
   
-  # Convert the pupil matrix to a data frame, adding trial and subject identifiers.
+  # Convert the pupil matrix to a data frame;
+  # using cbind() avoids the mutate() error when adding a vector column
   df <- as.data.frame(pupilData)
-  df <- df %>%
-    mutate(trial = row_number(),
-           subject = subj,
-           condOrder = condOrder)  # assumes length(condOrder)==nrow(pupilData)
+  df <- cbind(df, trial = 1:nrow(df), subject = subj, condOrder = condOrder)
   
-  # Reshape from wide (each column = time point) to long format
+  # Reshape from wide (each column = time point, named V1, V2, ...) to long format
   df_long <- pivot_longer(df,
-                          cols = -c(trial, subject, condOrder),
+                          cols = starts_with("V"),
                           names_to = "time",
                           values_to = "pupil")
   
-  # Convert the time variable to numeric (assumes column names like V1, V2, ...)
-  df_long <- df_long %>%
-    mutate(time = as.numeric(gsub("V", "", time)))
+  # Convert the time variable (from "V1", "V2", etc.) to a numeric index
+  df_long$time <- as.numeric(gsub("V", "", df_long$time))
   
   return(df_long)
 })
 
-# Bind all subject data together
 combined_data <- bind_rows(all_data)
 
-# Check structure and a quick summary of the combined data
+# Inspect the structure and summary of the combined data
 str(combined_data)
 summary(combined_data)
 
-# Optionally, save the combined data for future use:
+# Save the combined data for future use if desired
 saveRDS(combined_data, file = "combined_pupil_data.rds")
+
 ```
 
-```{r summary stats}
-# Compute summary statistics per subject and trial
+```{r summary statistics}
+library(dplyr)
+
+# Compute summary stats for each subject/trial (mean and SD of pupil diameter)
 trial_stats <- combined_data %>%
   group_by(subject, trial) %>%
   summarize(mean_pupil = mean(pupil, na.rm = TRUE),
             sd_pupil   = sd(pupil, na.rm = TRUE),
             .groups = "drop")
 
-# Overall pupil statistics across all subjects and trials
+# Compute overall summary stats across all subjects and trials
 overall_stats <- combined_data %>%
   summarize(mean_pupil = mean(pupil, na.rm = TRUE),
             sd_pupil   = sd(pupil, na.rm = TRUE),
@@ -87,8 +88,9 @@ print(overall_stats)
 
 ```
 
-```{r mean subj pupil}
-# Average pupil value per time point for each subject (averaged over trials)
+```{r plot mean pupil TS by subj}
+library(ggplot2)
+
 subject_time_series <- combined_data %>%
   group_by(subject, time) %>%
   summarize(mean_pupil = mean(pupil, na.rm = TRUE), .groups = "drop")
@@ -101,7 +103,7 @@ ggplot(subject_time_series, aes(x = time, y = mean_pupil, group = subject)) +
 
 ```
 
-```{r pupil distribution plot}
+```{r pupil measure distribution}
 ggplot(combined_data, aes(x = pupil)) +
   geom_histogram(bins = 50, fill = "grey", color = "black") +
   labs(title = "Distribution of Pupil Measurements",
@@ -110,8 +112,7 @@ ggplot(combined_data, aes(x = pupil)) +
 
 ```
 
-```{r mean pupil TS conditions}
-# Compute average pupil time series for each condition (across subjects and trials)
+```{r mean pupil by condition}
 condition_time_series <- combined_data %>%
   group_by(condOrder, time) %>%
   summarize(mean_pupil = mean(pupil, na.rm = TRUE), .groups = "drop")
