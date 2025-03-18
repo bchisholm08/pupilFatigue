@@ -8,7 +8,7 @@
 if (!require(signal)) {
   install.packages("signal")
   library(signal)
-
+}
 
 # Debugged version of resample_signal function
 resample_signal <- function(inputMatrix, upSamp, downSamp, filt = 10, beta = 5) { 

@@ -1,73 +1,66 @@
 #-------------------------------------------------------
 # Author: Brady M. Chisholm
 # University of Minnesota Twin Cities, Dpt. of Psychology
-# 3.17.2025
+# Date: 3.17.2025
+#
+# Description: This script loads processed pupil data using the 
+#              integrated getRData() function (which now includes the
+#              resample_signal function), combines the data into a 
+#              long-format data frame, computes summary statistics, 
+#              and produces several exploratory plots.
 #-------------------------------------------------------
 
+library(mgcv)       # For GAMM analysis 
+library(dplyr)      # Data manipulations & formatting
+library(tidyr)      # Data manipulations & formatting
+library(ggplot2)    # Figures
 
-library(knitr)      # purl(); source .Rmd code for callings functions  
-library(mgcv)       # gamm mods 
-library(dplyr)      # data manipulations & formatting
-library(tidyr)      # data manipulations & formatting
-library(ggplot2)    # figures
-
-
-# get subj and resample function 
-
-purl("M:/Lab_Shared/Brady_C/Projects/pupilEEG_fatigue/statistics/scripts/codebase/getData_RV.Rmd",
-     output = "getData_RV.R")
+# Source the getData_RV.R script, which now integrates the resample_signal function
 source("getData_RV.R")
+# No need to source "resampleSignal.R" separately
 
-purl("M:/Lab_Shared/Brady_C/Projects/pupilEEG_fatigue/statistics/scripts/codebase/resampleSignal.Rmd",
-     output = "resampleSignal.R")
-source("resampleSignal.R")
-
+# Load processed subject data
 subjDataList <- getRData(1)
-# pseudocode assert(trialNumExpected, downSampledDatExpected) or something of the sort 
-summary(subjDataList) # assertion that data dims are what are expected is completed within getRData()
+# Data dimension assertions are handled within getRData()
+summary(subjDataList)
 
-
-# r gpt block gather data and combine
 # Combine the downsampled data from all subjects into one long-format data frame
-
 all_data <- lapply(names(subjDataList), function(subj) {
   data_subj <- subjDataList[[subj]]
   
-  # Extract the pupil data (trials x timepoints) and condition order (vector of length trials)
+  # Extract the pupil data (trials x timepoints) and condition order (vector)
   pupilData <- data_subj$pupilData    
   condOrder <- data_subj$condOrder      
   
-  # Convert the pupil matrix to a data frame;
-  # using cbind() avoids the mutate() error when adding a vector column
+  # Convert the pupil matrix to a data frame; using cbind() avoids issues with vector recycling
   df <- as.data.frame(pupilData)
   df <- cbind(df, trial = 1:nrow(df), subject = subj, condOrder = condOrder)
   
-  # Reshape from wide (each column = time point, named V1, V2, ...) to long format
+  # Reshape from wide (each column = a time point, e.g., V1, V2, ...) to long format
   df_long <- pivot_longer(df,
                           cols = starts_with("V"),
                           names_to = "time",
                           values_to = "pupil")
   
-  # Convert the time variable (from "V1", "V2", etc.) to a numeric index
+  # Convert the time variable (e.g., "V1") to a numeric index
   df_long$time <- as.numeric(gsub("V", "", df_long$time))
   
   return(df_long)
 })
 
-# r gpt combine}
+# Bind all subject data together
 combined_data <- bind_rows(all_data)
 
-# Inspect the structure and summary of the combined data
+# Inspect structure and summary of the combined data
 str(combined_data)
 summary(combined_data)
 
-# Save the combined data for future use if desired
+# Save the combined data for future use
 saveRDS(combined_data, file = "combined_pupil_data.rds")
 
-# r summary statistics
-library(dplyr)
+# --- Summary Statistics ---
 
-# Compute summary stats for each subject/trial (mean and SD of pupil diameter)
+# Compute summary stats for each subject/trial (mean and standard deviation)
 trial_stats <- combined_data %>%
   group_by(subject, trial) %>%
   summarize(mean_pupil = mean(pupil, na.rm = TRUE),
@@ -84,9 +77,9 @@ overall_stats <- combined_data %>%
 print(trial_stats)
 print(overall_stats)
 
-# r plot mean pupil TS by subj}
-library(ggplot2)
+# --- Plots ---
 
+# Mean pupil time series per subject
 subject_time_series <- combined_data %>%
   group_by(subject, time) %>%
   summarize(mean_pupil = mean(pupil, na.rm = TRUE), .groups = "drop")
@@ -97,16 +90,14 @@ ggplot(subject_time_series, aes(x = time, y = mean_pupil, group = subject)) +
        x = "Time (sample index)",
        y = "Mean Pupil Diameter")
 
-# r pupil measure distribution
+# Distribution of pupil measurements
 ggplot(combined_data, aes(x = pupil)) +
   geom_histogram(bins = 50, fill = "grey", color = "black") +
   labs(title = "Distribution of Pupil Measurements",
        x = "Pupil Diameter",
        y = "Frequency")
 
-
-
-# r mean pupil by condition
+# Mean pupil time series by condition
 condition_time_series <- combined_data %>%
   group_by(condOrder, time) %>%
   summarize(mean_pupil = mean(pupil, na.rm = TRUE), .groups = "drop")
@@ -117,4 +108,3 @@ ggplot(condition_time_series, aes(x = time, y = mean_pupil, color = as.factor(co
        x = "Time (sample index)",
        y = "Mean Pupil Diameter",
        color = "Condition")
-
