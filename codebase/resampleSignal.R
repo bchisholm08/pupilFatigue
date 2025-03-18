@@ -1,9 +1,14 @@
-```{r}
+#-------------------------------------------------------
+# Author: Brady M. Chisholm
+# University of Minnesota Twin Cities, Dpt. of Psychology
+# 3.17.2025
+#-------------------------------------------------------
+
 # Load required package
 if (!require(signal)) {
   install.packages("signal")
   library(signal)
-}
+
 
 # Debugged version of resample_signal function
 resample_signal <- function(inputMatrix, upSamp, downSamp, filt = 10, beta = 5) { 
@@ -62,5 +67,4 @@ resample_signal <- function(inputMatrix, upSamp, downSamp, filt = 10, beta = 5) 
   
   return(resampled)
 }
-```
 

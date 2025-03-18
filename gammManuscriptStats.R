@@ -1,17 +1,19 @@
+#-------------------------------------------------------
 # Author: Brady M. Chisholm
-# University of Minnesota Twin Cities
-# Department of Psychology
+# University of Minnesota Twin Cities, Dpt. of Psychology
+# 3.17.2025
+#-------------------------------------------------------
 
-```{r}
+
 library(knitr)      # purl(); source .Rmd code for callings functions  
 library(mgcv)       # gamm mods 
 library(dplyr)      # data manipulations & formatting
 library(tidyr)      # data manipulations & formatting
 library(ggplot2)    # figures
-```
 
-# source subj function and resample signal function 
-```{r}
+
+# get subj and resample function 
+
 purl("M:/Lab_Shared/Brady_C/Projects/pupilEEG_fatigue/statistics/scripts/codebase/getData_RV.Rmd",
      output = "getData_RV.R")
 source("getData_RV.R")
@@ -19,16 +21,13 @@ source("getData_RV.R")
 purl("M:/Lab_Shared/Brady_C/Projects/pupilEEG_fatigue/statistics/scripts/codebase/resampleSignal.Rmd",
      output = "resampleSignal.R")
 source("resampleSignal.R")
-```
 
-```{r}
 subjDataList <- getRData(1)
-# assert(trialNumExpected, downSampledDatExpected)
-summary(subjDataList)
-# check dims returned from getRData against expected vals 
-```
+# pseudocode assert(trialNumExpected, downSampledDatExpected) or something of the sort 
+summary(subjDataList) # assertion that data dims are what are expected is completed within getRData()
 
-```{r gpt block gather data and combine}
+
+# r gpt block gather data and combine
 # Combine the downsampled data from all subjects into one long-format data frame
 
 all_data <- lapply(names(subjDataList), function(subj) {
@@ -55,6 +54,7 @@ all_data <- lapply(names(subjDataList), function(subj) {
   return(df_long)
 })
 
+# r gpt combine}
 combined_data <- bind_rows(all_data)
 
 # Inspect the structure and summary of the combined data
@@ -64,9 +64,7 @@ summary(combined_data)
 # Save the combined data for future use if desired
 saveRDS(combined_data, file = "combined_pupil_data.rds")
 
-```
-
-```{r summary statistics}
+# r summary statistics
 library(dplyr)
 
 # Compute summary stats for each subject/trial (mean and SD of pupil diameter)
@@ -86,9 +84,7 @@ overall_stats <- combined_data %>%
 print(trial_stats)
 print(overall_stats)
 
-```
-
-```{r plot mean pupil TS by subj}
+# r plot mean pupil TS by subj}
 library(ggplot2)
 
 subject_time_series <- combined_data %>%
@@ -101,18 +97,16 @@ ggplot(subject_time_series, aes(x = time, y = mean_pupil, group = subject)) +
        x = "Time (sample index)",
        y = "Mean Pupil Diameter")
 
-```
-
-```{r pupil measure distribution}
+# r pupil measure distribution
 ggplot(combined_data, aes(x = pupil)) +
   geom_histogram(bins = 50, fill = "grey", color = "black") +
   labs(title = "Distribution of Pupil Measurements",
        x = "Pupil Diameter",
        y = "Frequency")
 
-```
 
-```{r mean pupil by condition}
+
+# r mean pupil by condition
 condition_time_series <- combined_data %>%
   group_by(condOrder, time) %>%
   summarize(mean_pupil = mean(pupil, na.rm = TRUE), .groups = "drop")
@@ -123,6 +117,4 @@ ggplot(condition_time_series, aes(x = time, y = mean_pupil, color = as.factor(co
        x = "Time (sample index)",
        y = "Mean Pupil Diameter",
        color = "Condition")
-
-```
 

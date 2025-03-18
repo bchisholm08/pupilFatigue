@@ -1,10 +1,12 @@
+#-------------------------------------------------------
 # Author: Brady M. Chisholm
-# University of Minnesota Twin Cities
-# Department of Psychology
+# University of Minnesota Twin Cities, Dpt. of Psychology
+# 3.17.2025
+#-------------------------------------------------------
 
 # NOTE: subjID is not subject order, nor is it chronological. Utilize: 
 # ln 10 = subj 1-10; ln 11 = 11-20; ln 12 = subj 16-30; ln 13 = subj 31-46; ln 14 = subj 47-
-```{r}
+
 getSubjList <- function(experiment) {
 if (experiment == 1) {
 subjList <- c('P01', 'P02', 'P03', 'P04', 'P05', 'P06', 'P07', 'P08', 'P09', 'P10',
@@ -25,5 +27,5 @@ subjList <- NULL
 }
 return(subjList)
 }
-```
+
 
