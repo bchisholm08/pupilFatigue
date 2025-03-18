@@ -16,11 +16,13 @@ library(tidyr)      # Data manipulations & formatting
 library(ggplot2)    # Figures
 
 # Source the getData_RV.R script, which now integrates the resample_signal function
-source("getData_RV.R")
+purl("M:/Lab_Shared/Brady_C/Projects/pupilEEG_fatigue/statistics/scripts/codebase/getSubjID_RV.R", 
+     output = "getSubjID_RV.R")
+source("getSubjID_RV.R")
 # No need to source "resampleSignal.R" separately
 
 # Load processed subject data
-subjDataList <- getRData(1)
+subjDataList <- getSubjID_RV(1)
 # Data dimension assertions are handled within getRData()
 summary(subjDataList)
 

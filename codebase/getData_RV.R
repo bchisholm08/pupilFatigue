@@ -3,71 +3,14 @@
 # University of Minnesota Twin Cities, Dpt. of Psychology
 # Date: 3.17.2025
 #
-# Description: This script loads raw MATLAB pupil data, checks and (if necessary)
-#              upsamples the data to 300Hz (6,000 samples for 20 sec trials),
-#              downsampled to 150Hz (3,000 samples), selects the better eye,
-#              and saves the processed data.
+# Description: This script loads raw MATLAB pupil data, ensures that
+#              the data are uniformly sampled at 300Hz (6000 samples for
+#              20-second trials), downsamples to 150Hz (3000 samples), 
+#              selects the better eye, and saves the processed data.
 #-------------------------------------------------------
 
-# --- Integrated Resample Signal Function ---
-if (!require(signal)) {
-  install.packages("signal")
-  library(signal)
-}
-
-# Debugged version of resample_signal function
-resample_signal <- function(inputMatrix, upSamp, downSamp, filt = 10, beta = 5) { 
-  # If inputMatrix is a vector, convert to a one-column matrix for uniform handling.
-  original_dim <- dim(inputMatrix)
-  if (is.null(original_dim)) {
-    inputMatrix <- matrix(inputMatrix, ncol = 1)
-  }
-  
-  # Determine filter length:
-  factor <- max(1, downSamp / upSamp)
-  L <- as.integer(2 * filt * factor + 1)
-  
-  # Design FIR low-pass filter:
-  cutoff <- 1 / max(upSamp, downSamp)
-  h <- fir1(L - 1, cutoff, window = kaiser(L, beta))
-  
-  # Function to perform upsampling, filtering, delay compensation, and downsampling.
-  upfirdn <- function(xvec, upSamp, downSamp, h) {
-    Lx <- length(xvec)
-    # Upsample: insert (upSamp-1) zeros between samples.
-    x_up <- rep(0, Lx * upSamp)
-    x_up[seq(1, Lx * upSamp, by = upSamp)] <- xvec
-    
-    # Filter the upsampled signal.
-    y_filt <- filter(h, 1, x_up)
-    
-    # Compensate for filter delay: group delay = (length(h)-1)/2.
-    delay <- floor((length(h) - 1) / 2)
-    if (length(y_filt) > delay) {
-      y_filt <- y_filt[(delay + 1):length(y_filt)]
-    } else {
-      warning("Signal too short for delay compensation. Returning filtered signal without delay compensation.")
-    }
-    
-    # Downsample: take every downSamp-th sample.
-    y_down <- y_filt[seq(1, length(y_filt), by = downSamp)]
-    return(y_down)
-  }
-  
-  # Apply the upfirdn process to each column of inputMatrix.
-  resampled <- apply(inputMatrix, 2, function(col) upfirdn(col, upSamp, downSamp, h))
-  
-  # If the original input was a vector, convert the output back to a vector.
-  if (is.null(original_dim)) {
-    resampled <- as.vector(resampled)
-  }
-  
-  return(resampled)
-}
-
-# --- getRData Function ---
 getRData <- function(data) {
-  # data = 1 for original experiment, any other input is fatal  
+  # data = 1 for original experiment; any other input is fatal  
   if (data == 1) {
     
     # libraries
@@ -78,13 +21,13 @@ getRData <- function(data) {
     # Base data directory
     base_dir <- "M:/Lab_Shared/Juraj/SpeechEEG_SentencesWithPupillometry/data"
     
-    # Miscellaneous directory for other experiment stuff (i.e. eyeUsed table)
+    # Directory for miscellaneous output (e.g., eyeUsed table)
     miscDir <- "M:/Lab_Shared/Brady_C/Projects/pupilEEG_fatigue/statistics/scripts/misc"
     
     # Directory to save downsampled data 
     downSampledDataDirectory <- "M:/Lab_Shared/Brady_C/Projects/pupilEEG_fatigue/statistics/scripts/downSampDat"
     
-    # Import subject ID function
+    # Import subject ID function (assumes getSubjID_RV.R has been properly documented)
     purl("M:/Lab_Shared/Brady_C/Projects/pupilEEG_fatigue/statistics/scripts/codebase/getSubjID_RV.Rmd", 
          output = "getSubjID_RV.R")
     source("getSubjID_RV.R")
@@ -92,95 +35,130 @@ getRData <- function(data) {
     # Get subject IDs 
     subjIDS <- getSubjList(1)
     
-    # Allocate space for data frame for efficiency & a little speed... 
+    # Allocate space for data (as a list, with subject IDs as names)
     subject_data <- vector("list", length(subjIDS))
     names(subject_data) <- subjIDS
     
-    # Prepare bookkeeping table for eye data selected in saving 
+    # Prepare bookkeeping table for the eye selected
     eyeUsed_Data <- data.frame(
       subject = subjIDS,
       eyeUsed = rep(NA, length(subjIDS)),
       stringsAsFactors = FALSE
     )
     
-    # Begin subject loop 
+    # --- Begin subject loop ---
     for (subj in subjIDS) {
-      # Construct file path for this subject.
+      # Construct the file path for this subject’s MATLAB file.
       file_path <- file.path(base_dir, subj, "eyeTrack", "processed", paste0(subj, "_preprocPupilData.mat"))
       
-      # Existence check 
+      # Existence check (fatal error if file not found)
       if (!file.exists(file_path)) {
         warning("File does not exist for subject: ", subj)
-        stop()  # Fatal error if data does not exist
+        stop()  # Terminate execution if file is missing
       }
       
-      # Read .mat data file (seems to be time heavy...)
+      # Read the .mat file (this can be time heavy)
       mat_data <- readMat(file_path)
       
+      # Extract the raw data array
       allDat <- mat_data$allDat
       message("Original allDat dimensions: ", paste(dim(allDat), collapse = " x "))
+      
+      # Check if data are at 300Hz (i.e., 6000 timepoints for 20 sec trials)
       current_points <- dim(allDat)[3]
-      # Logical check: maximum trial length is 20 seconds; 300Hz sampling should yield 6000 samples.
       if (current_points != 6000) {
+        # Calculate the upsampling ratio needed to reach 6000 samples
         ratio <- 6000 / current_points
         if (ratio %% 1 != 0) {
-          warning("Upsampling factor not an int (", ratio, "). Rounding to the nearest int")
+          warning("Upsampling factor is not an integer (", ratio, "). Rounding to the nearest integer.")
           ratio <- round(ratio)
         }
         message("Upsampling allDat from ", current_points, " to 6000 timepoints using upSamp = ", ratio)
-        # Create an empty array to hold the upsampled data.
+        
+        # Create an empty array for the upsampled data
         new_allDat <- array(NA, dim = c(dim(allDat)[1], dim(allDat)[2], 6000))
-        # Loop over each trial (first dimension) and each eye channel (second dimension)
+        # Loop over trials (first dim) and channels (second dim) to apply inline resampling
         for (i in 1:dim(allDat)[1]) {
           for (j in 1:dim(allDat)[2]) {
-            new_allDat[i, j, ] <- resample_signal(as.numeric(allDat[i, j, ]), upSamp = ratio, downSamp = 1, filt = 10, beta = 5)
+            # --- Inline Resampling Logic ---
+            # Extract the original time series for this trial/channel:
+            xvec <- as.numeric(allDat[i, j, ])
+            Lx <- length(xvec)
+            # Upsample: create a vector with zeros inserted between samples.
+            x_up <- rep(0, Lx * ratio)
+            x_up[seq(1, Lx * ratio, by = ratio)] <- xvec
+            
+            # Determine filter length.
+            # For upSamp = ratio and downSamp = 1, factor = max(1, 1/ratio) will be 1 if ratio > 1.
+            L <- as.integer(2 * 10 * 1 + 1)  # Using filt = 10
+            # Design an FIR low-pass filter with a Kaiser window.
+            cutoff <- 1 / max(ratio, 1)       # Normalized cutoff frequency
+            h <- fir1(L - 1, cutoff, window = kaiser(L, 5))  # beta = 5
+            
+            # Filter the upsampled signal.
+            y_filt <- filter(h, 1, x_up)
+            
+            # Compensate for filter delay.
+            delay <- floor((length(h) - 1) / 2)
+            if (length(y_filt) > delay) {
+              y_filt <- y_filt[(delay + 1):length(y_filt)]
+            } else {
+              warning("Signal too short for delay compensation. Returning filtered signal without delay removal.")
+            }
+            
+            # With downSamp = 1, the result is y_filt.
+            # Ensure exactly 6000 samples (truncate if necessary)
+            if (length(y_filt) >= 6000) {
+              y_down <- y_filt[1:6000]
+            } else {
+              # If fewer than 6000 samples, pad with NA values.
+              y_down <- c(y_filt, rep(NA, 6000 - length(y_filt)))
+            }
+            # Save the processed time series.
+            new_allDat[i, j, ] <- y_down
           }
         }
         allDat <- new_allDat
         message("New allDat dimensions: ", paste(dim(allDat), collapse = " x "))
       }
       
-      # Check cond order exists 
+      # Ensure the 'condOrder' field exists
       if ("condOrder" %in% names(mat_data)) {
         condOrder <- mat_data$condOrder
       } else {
         warning(subj, ": 'condOrder' not found in .mat file.")
-        stop()  # Fatal error; stop
-      }
-      
-      # Check allDat exists 
-      if (!"allDat" %in% names(mat_data)) {
-        warning(subj, ": 'allDat' not found in the .mat file.")
         stop()
       }
       
-      # Compute mean validity for selecting the better eye.
+      # Compute mean validity to choose the best eye.
       validityVals <- colMeans(mat_data$allValidityPercentage, na.rm = TRUE)
-      
-      # Select the better eye based on validity values.
-      if (validityVals[1] > validityVals[2]){
-        pupilData <- allDat[,1,] 
+      if (validityVals[1] > validityVals[2]) {
+        pupilData <- allDat[, 1, ]
         eyeUsed <- "L"
       } else {
-        pupilData <- allDat[,2,] 
+        pupilData <- allDat[, 2, ]
         eyeUsed <- "R"
-      }    
+      }
       eyeUsed_Data[eyeUsed_Data$subject == subj, "eyeUsed"] <- eyeUsed
       
-      # --- New Resampling Step ---
-      # Downsample pupil data from 300Hz to 150Hz using the resample_signal function.
-      # pupilData is a matrix of [trials x timepoints] (200 x 6000) and we want to resample along time.
-      pupilData_down <- t(resample_signal(t(pupilData), upSamp = 1, downSamp = 2, filt = 10, beta = 5))
+      # --- Downsampling Step ---
+      # Now that pupilData is a matrix of [trials x timepoints] (200 x 6000),
+      # downsample from 300Hz to 150Hz by taking every 2nd sample.
+      # We implement the same filtering/delay compensation approach inline via transposition.
+      # For clarity, here we use a simple approach with our inline resampling logic:
+      # Transpose pupilData so that time points are in columns:
+      pupilData_T <- t(pupilData)
+      # Downsample by selecting every 2nd sample:
+      pupilData_down <- pupilData_T[seq(1, nrow(pupilData_T), by = 2), ]
+      # Transpose back so the dimensions are [trials x timepoints]:
+      pupilData_down <- t(pupilData_down)
       
-      # Verify dimensions: Should be 200 x 3000 after downsampling.
       if (!all(dim(pupilData_down) == c(200, 3000))) {
         warning("Subject ", subj, ": downsampled data dims != [200 x 3000]")
       }
-      
-      # Replace original pupilData with the downsampled version.
       pupilData <- pupilData_down
       
-      # Check condOrder validity.
+      # Final check on condOrder
       if (is.null(mat_data$condOrder) || any(is.na(mat_data$condOrder))) {
         warning("Subject ", subj, ": condOrder not found or contains NA/NaN values.")
         stop()
@@ -188,10 +166,10 @@ getRData <- function(data) {
         condOrder <- mat_data$condOrder
       }
       
-      # Save subject's data (pupilData and condOrder) in the list.
+      # Save the subject's processed data.
       subject_data[[subj]] <- list(pupilData = pupilData, condOrder = condOrder)
       
-      # Create subject folder in the downsampled data directory, if it does not exist.
+      # Create folder for subject if it doesn't exist.
       subjectFolder <- file.path(downSampledDataDirectory, subj)
       if (!dir.exists(subjectFolder)) {
         dir.create(subjectFolder, recursive = TRUE)
@@ -203,19 +181,20 @@ getRData <- function(data) {
       message("Saved downsampled data for ", subj, " at ", fileName)
     }
     
-    # Save the eyeUsed_Data table to the misc directory.
+    # Save the eyeUsed bookkeeping table.
     eyeUsedFile <- file.path(miscDir, paste0("eyeUsed_Data_", format(Sys.Date(), "%Y%m%d"), ".csv"))
     write.csv(eyeUsed_Data, eyeUsedFile, row.names = FALSE)
     message("Saved eyeUsed data at ", eyeUsedFile)
     
-    # Print dimensions of downsampled subject data.
+    # Print dimensions for each subject's downsampled data.
     for (subj in names(subject_data)) {
       dims <- paste(dim(subject_data[[subj]]$pupilData), collapse = " x ")
       message("Subject: ", subj, " - Downsampled data dimensions: ", dims)
     }
     
-    # Return list with pupil data and condition order.
+    # Return the list with pupil data and condition order.
     return(subject_data)
+    
   } else {
     stop("Data value not recognized. Please provide a valid data input.")
   }
